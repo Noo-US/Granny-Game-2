@@ -1,15 +1,19 @@
 {
-    "name": "Granny",
-    "short_name": "Granny",
-    "start_url": "index.html",
-    "display": "fullscreen",
-    "background_color": "#231F20",
-    "theme_color": "#000",
-    "description": "",
-    "icons": [{
+  "name": "Granny",
+  "short_name": "Granny",
+  "description": "Escape Granny's house before she catches you. WebGL port by Ducky.",
+  "start_url": "/index.html",
+  "display": "fullscreen",
+  "orientation": "landscape",
+  "background_color": "#060402",
+  "theme_color": "#060402",
+  "categories": ["games"],
+  "icons": [
+    {
       "src": "TemplateData/icons/unity-logo-dark.png",
       "sizes": "144x144",
       "type": "image/png",
       "purpose": "any maskable"
-    }]
-  }
+    }
+  ]
+}
