@@ -491,11 +491,8 @@
   </div>
 
   <script>
-    /* ─── Supabase config ──────────────────────────────────────────────── */
-    const SUPABASE_URL    = 'https://adqbrvbcyifrcmckkypg.supabase.co';
-    const SUPABASE_KEY    = 'sb_publishable_-QHX3KfAJ0sImPlL2QhL3A_y7TyU7iG';
-    const SUPABASE_BUCKET = 'secret-granny-game';
-    const BASE = `${SUPABASE_URL}/storage/v1/object/public/${SUPABASE_BUCKET}`;
+    /* ─── Build base path ──────────────────────────────────────────────── */
+    const BASE = '/Build';
 
     /* ─── Access tokens ────────────────────────────────────────────────── */
     const TOKENS = new Set(['AT-8F0L-1QZN', 'AT-4D9K-83M2', 'AT-IV5O-3UX8', 'AT-V7PR-4LLP']);
@@ -570,20 +567,13 @@
       launchGame();
     }
 
-    /* ─── Authenticated fetch helper ───────────────────────────────────── */
-    function sbFetch(url) {
-      return fetch(url, {
-        headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY }
-      });
-    }
-
     /* ─── Part-file assembler ──────────────────────────────────────────── */
     async function getCombinedBlob(basePath, count, label) {
       const bufs = [];
       for (let i = 1; i <= count; i++) {
         const url = `${basePath}.part${String(i).padStart(2, '0')}`;
         loadPct.textContent = `${label} \u2014 ${Math.round((i / count) * 100)}%`;
-        const res = await sbFetch(url);
+        const res = await fetch(url);
         if (!res.ok) throw new Error('Missing: ' + url);
         bufs.push(await res.arrayBuffer());
         barFill.style.width = `${(i / count) * 100}%`;
@@ -614,7 +604,7 @@
         loadPct.textContent = 'starting\u2026';
         barFill.style.width = '0%';
 
-        const loaderRes = await sbFetch(`${BASE}/GrannyBog.loader.js`);
+        const loaderRes = await fetch(`${BASE}/GrannyBog.loader.js`);
         const loaderBlob = URL.createObjectURL(await loaderRes.blob());
 
         const script = document.createElement('script');

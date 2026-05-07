@@ -9,7 +9,7 @@
 > *Don't make any noise. She'll hear you.*
 
 WebGL browser port of **Granny** by [DVloper](https://www.dvloper.com).
-Port by **Ducky** — hosted on Cloudflare Pages, assets on Supabase Storage.
+Port by **Ducky** — hosted on Vercel, assets served from the repo.
 
 ---
 
@@ -17,8 +17,8 @@ Port by **Ducky** — hosted on Cloudflare Pages, assets on Supabase Storage.
 
 | Layer | Service |
 |---|---|
-| Hosting | Cloudflare Pages |
-| Asset storage | Supabase Storage (`secret-granny-game` bucket) |
+| Hosting | Vercel |
+| Asset storage | Repo (`/Build` folder) |
 | Local dev | `node server.js` |
 
 ---
@@ -38,6 +38,33 @@ To add more, open `index.html` and add to the `TOKENS` set at the top of the `<s
 
 ---
 
+## File Structure
+
+```
+/
+├── index.html            ← entry point + all game UI
+├── vercel.json           ← COOP/COEP headers required for Wasm
+├── ServiceWorker.js
+├── manifest.webmanifest
+├── server.js             ← local dev only
+├── README.md
+└── Build/
+    ├── GrannyBog.loader.js
+    ├── GrannyBog.framework.js
+    ├── GrannyBog.data.part01
+    ├── GrannyBog.data.part02
+    │   ... (23 parts total)
+    ├── GrannyBog.wasm.part01
+    ├── GrannyBog.wasm.part02
+    └── StreamingAssets/
+```
+
+> **Note:** Vercel's free tier has a **250 MB total deployment size limit**.  
+> If your `Build/` folder exceeds this, consider upgrading to a paid plan or
+> splitting off only the largest part files to Git LFS.
+
+---
+
 ## Local Development
 
 Requires [Node.js](https://nodejs.org) — no install step, no dependencies.
@@ -48,76 +75,34 @@ cd Granny-main
 node server.js
 ```
 
-Open **http://localhost:3000** — or the Network address printed in the terminal to access from another device (e.g. a Chromebook on the same WiFi).
+Open **http://localhost:3000** — or the Network address printed in the terminal to
+access from another device (e.g. a Chromebook on the same WiFi).
 
 > `server.js` auto-combines any `.part01/.part02` split files on first run,
 > sets the required COOP/COEP headers, and serves correct MIME types for `.wasm`.
-> Only needed locally — Cloudflare handles headers in production via `_headers`.
 
 ---
 
-## Deploying to Cloudflare Pages
+## Deploying to Vercel
 
-1. Push the repo to GitHub (make sure `.env.local` is in `.gitignore`)
-2. Go to [Cloudflare Pages](https://pages.cloudflare.com) → **Create a project** → connect your repo
-3. Build settings: leave **Framework preset** as *None*, **build command** blank, **output directory** as `/` (root)
-4. Add environment variables under **Settings → Environment Variables**:
+1. Make sure `Build/` is **committed to the repo** (remove it from `.gitignore` if needed)
+2. Push the repo to GitHub
+3. Go to [Vercel](https://vercel.com) → **Add New Project** → import your repo
+4. Build settings: leave **Framework Preset** as *Other*, **build command** blank,
+   **output directory** blank (serves from root)
+5. Click **Deploy** — every `git push` to `main` redeploys automatically
 
-```
-NEXT_PUBLIC_SUPABASE_URL             = https://adqbrvbcyifrcmckkypg.supabase.co
-NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY = sb_publishable_-QHX3KfAJ0sImPlL2QhL3A_y7TyU7iG
-```
-
-5. Deploy — every `git push` to `main` triggers a redeploy automatically.
-
----
-
-## Supabase Storage
-
-All Unity build files live in the **`secret-granny-game`** public bucket:
-
-```
-secret-granny-game/
-├── GrannyBog.loader.js
-├── GrannyBog.framework.js
-├── GrannyBog.data.part01
-├── GrannyBog.data.part02
-│   ... (23 parts total)
-├── GrannyBog.wasm.part01
-├── GrannyBog.wasm.part02
-└── StreamingAssets/
-```
-
-The browser fetches all `.part` files and stitches them in-memory before passing
-blob URLs to the Unity loader — no server-side processing needed.
-
-Make sure the bucket is set to **Public** in Supabase → Storage → Policies.
-
----
-
-## File Structure
-
-```
-/
-├── index.html        ← entry point + all game UI
-├── _headers          ← Cloudflare Pages COOP/COEP headers (required for Wasm)
-├── server.js         ← local dev only
-├── .env.local        ← local secrets (never commit — add to .gitignore)
-└── README.md
-```
+No environment variables are needed.
 
 ---
 
 ## .gitignore
 
-Make sure this is in your `.gitignore`:
-
 ```
 .env.local
-Build/
 ```
 
-The `Build/` folder only matters locally. In production, everything comes from Supabase.
+The `Build/` folder must be committed so Vercel can serve the game files.
 
 ---
 
