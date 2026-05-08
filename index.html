@@ -145,10 +145,11 @@
       text-transform: uppercase; color: var(--bone-dim);
     }
     #unity-warning {
-      position: absolute; top: 16px;
+      position: absolute; top: 16px; z-index: 20;
       background: #380404; border: 1px solid var(--blood);
       color: #ffaaaa; padding: 8px 18px;
       font-family: 'Special Elite', monospace; font-size: 0.78rem;
+      max-width: 90vw; text-align: center;
       display: none;
     }
 
@@ -430,12 +431,14 @@
     <div class="card" id="gate-card">
       <p class="card-label">She&#8217;s always watching</p>
       <h1 class="card-title">Granny</h1>
-      <div class="field">
-        <input id="gate-input" type="password" placeholder="access token"
-               autocomplete="off" spellcheck="false">
-        <button class="eye-btn" id="eye-btn" title="Show / hide">&#128065;</button>
-      </div>
-      <button id="gate-submit" class="btn btn-blood" disabled>Enter</button>
+      <form onsubmit="return false">
+        <div class="field">
+          <input id="gate-input" type="password" placeholder="access token"
+                 autocomplete="current-password" spellcheck="false">
+          <button class="eye-btn" id="eye-btn" type="button" title="Show / hide">&#128065;</button>
+        </div>
+        <button id="gate-submit" class="btn btn-blood" disabled type="submit">Enter</button>
+      </form>
       <div id="gate-err" class="err"></div>
     </div>
   </div>
@@ -609,14 +612,23 @@
 
         const script = document.createElement('script');
         script.src = loaderBlob;
+        script.onerror = () => {
+          warning.textContent = 'Failed to execute loader script — check Build/GrannyBog.loader.js exists and is valid.';
+          warning.style.display = 'block';
+        };
         script.onload = () => {
+          if (typeof createUnityInstance === 'undefined') {
+            warning.textContent = 'createUnityInstance not found — loader script did not define it. The file may be corrupt or wrong.';
+            warning.style.display = 'block';
+            return;
+          }
           createUnityInstance(canvas, config, p => {
             barFill.style.width = (100 * p) + '%';
             loadPct.textContent = `${Math.round(100 * p)}%`;
           }).then(() => {
             loadingUI.style.display = 'none';
           }).catch(err => {
-            warning.textContent = err.message || err;
+            warning.textContent = err.message || String(err);
             warning.style.display = 'block';
           });
         };
