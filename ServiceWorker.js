@@ -1,63 +1,121 @@
-const CACHE = "Ducky-Granny-1.0";
+const CACHE_NAME = "granny-cache-v1";
 
-// App shell only — Unity build assets live on Supabase and are too large
-// (and cross-origin) to cache here. The SW keeps the page itself available.
-const SHELL = [
+const APP_SHELL = [
   "/",
   "/index.html",
-  "/manifest.webmanifest",
+  "/manifest.webmanifest"
 ];
 
-self.addEventListener("install", (e) => {
-  console.log("[SW] Install");
-  e.waitUntil(
-    caches.open(CACHE).then((cache) => {
-      console.log("[SW] Caching app shell");
-      return cache.addAll(SHELL);
+/* ───────────────────────────────────────────── */
+/* INSTALL                                      */
+/* ───────────────────────────────────────────── */
+
+self.addEventListener("install", (event) => {
+
+  self.skipWaiting();
+
+  event.waitUntil(
+    caches.open(CACHE_NAME).then((cache) => {
+      return cache.addAll(APP_SHELL);
     })
   );
-  self.skipWaiting();
 });
 
-self.addEventListener("activate", (e) => {
-  console.log("[SW] Activate — pruning old caches");
-  e.waitUntil(
-    caches.keys().then((keys) =>
-      Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k)))
-    )
+/* ───────────────────────────────────────────── */
+/* ACTIVATE                                     */
+/* ───────────────────────────────────────────── */
+
+self.addEventListener("activate", (event) => {
+
+  event.waitUntil(
+    caches.keys().then((keys) => {
+
+      return Promise.all(
+        keys.map((key) => {
+
+          if (key !== CACHE_NAME) {
+            return caches.delete(key);
+          }
+        })
+      );
+    })
   );
+
   self.clients.claim();
 });
 
-self.addEventListener("fetch", (e) => {
-  const url = new URL(e.request.url);
+/* ───────────────────────────────────────────── */
+/* FETCH                                        */
+/* ───────────────────────────────────────────── */
 
-  // Let Supabase requests go straight to network — don't cache large binary blobs
-  if (url.hostname.includes("supabase.co")) {
-    return; // browser handles it normally
+self.addEventListener("fetch", (event) => {
+
+  const req = event.request;
+
+  /*
+    Unity files MUST bypass cache.
+    This prevents 9% freeze bugs.
+  */
+
+  const url = new URL(req.url);
+
+  const isUnityFile =
+
+    url.pathname.includes("/Build/") ||
+
+    url.pathname.endsWith(".data") ||
+    url.pathname.endsWith(".wasm") ||
+
+    url.pathname.includes(".data.part") ||
+    url.pathname.includes(".wasm.part") ||
+
+    url.pathname.endsWith(".framework.js") ||
+    url.pathname.endsWith(".loader.js");
+
+  /*
+    NEVER cache Unity build assets
+  */
+
+  if (isUnityFile) {
+    return;
   }
 
-  e.respondWith(
-    caches.match(e.request).then((cached) => {
+  /*
+    Cache-first strategy for lightweight assets
+  */
+
+  event.respondWith(
+
+    caches.match(req).then((cached) => {
+
       if (cached) {
-        console.log(`[SW] Cache hit: ${url.pathname}`);
         return cached;
       }
 
-      return fetch(e.request).then((response) => {
-        // Only cache valid, same-origin responses
-        if (!response || !response.ok || response.type === "opaque") {
+      return fetch(req)
+        .then((response) => {
+
+          /*
+            Only cache successful same-origin responses
+          */
+
+          if (
+            !response ||
+            !response.ok ||
+            response.type !== "basic"
+          ) {
+            return response;
+          }
+
+          const clone = response.clone();
+
+          caches.open(CACHE_NAME)
+            .then((cache) => {
+              cache.put(req, clone);
+            });
+
           return response;
-        }
-
-        const clone = response.clone();
-        caches.open(CACHE).then((cache) => {
-          console.log(`[SW] Caching: ${url.pathname}`);
-          cache.put(e.request, clone);
         });
-
-        return response;
-      });
     })
   );
 });

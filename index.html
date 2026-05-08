@@ -493,151 +493,302 @@
     <div id="unity-warning"></div>
   </div>
 
-  <script>
-    /* ─── Build base path ──────────────────────────────────────────────── */
-    const BASE = '/Build';
+ <script>
+  /* ─── Build base path ──────────────────────────────────────────────── */
+  const BASE = '/Build';
 
-    /* ─── Access tokens ────────────────────────────────────────────────── */
-    const TOKENS = new Set(['AT-8F0L-1QZN', 'AT-4D9K-83M2', 'AT-IV5O-3UX8', 'AT-V7PR-4LLP']);
+  /* ─── Access tokens ────────────────────────────────────────────────── */
+  const TOKENS = new Set([
+    'AT-8F0L-1QZN',
+    'AT-4D9K-83M2',
+    'AT-IV5O-3UX8',
+    'AT-V7PR-4LLP'
+  ]);
 
-    /* ─── Build config ─────────────────────────────────────────────────── */
-    const DATA_PARTS = 23;
-    const WASM_PARTS = 2;
+  /* ─── Build config ─────────────────────────────────────────────────── */
+  const DATA_PARTS = 23;
+  const WASM_PARTS = 2;
 
-    /* ─── Elements ─────────────────────────────────────────────────────── */
-    const gateOverlay = document.getElementById('gate-overlay');
-    const gateCard    = document.getElementById('gate-card');
-    const gateInput   = document.getElementById('gate-input');
-    const gateSubmit  = document.getElementById('gate-submit');
-    const gateErr     = document.getElementById('gate-err');
-    const eyeBtn      = document.getElementById('eye-btn');
-    const tosOverlay  = document.getElementById('tos-overlay');
-    const tosCheck    = document.getElementById('tos-check');
-    const tosStart    = document.getElementById('tos-start');
-    const unityWrap   = document.getElementById('unity-container');
-    const canvas      = document.getElementById('unity-canvas');
-    const barFill     = document.getElementById('bar-fill');
-    const loadPct     = document.getElementById('load-pct');
-    const loadingUI   = document.getElementById('loading-ui');
-    const warning     = document.getElementById('unity-warning');
+  /* ─── Elements ─────────────────────────────────────────────────────── */
+  const gateOverlay = document.getElementById('gate-overlay');
+  const gateCard    = document.getElementById('gate-card');
+  const gateInput   = document.getElementById('gate-input');
+  const gateSubmit  = document.getElementById('gate-submit');
+  const gateErr     = document.getElementById('gate-err');
+  const eyeBtn      = document.getElementById('eye-btn');
 
-    /* ─── Eye toggle ───────────────────────────────────────────────────── */
-    eyeBtn.addEventListener('click', () => {
-      gateInput.type = gateInput.type === 'password' ? 'text' : 'password';
-    });
+  const tosOverlay  = document.getElementById('tos-overlay');
+  const tosCheck    = document.getElementById('tos-check');
+  const tosStart    = document.getElementById('tos-start');
 
-    /* ─── Gate ─────────────────────────────────────────────────────────── */
-    gateInput.addEventListener('input', () => {
-      gateSubmit.disabled = gateInput.value.trim() === '';
-      gateErr.textContent = '';
-    });
-    gateInput.addEventListener('keydown', e => {
-      if (e.key === 'Enter' && !gateSubmit.disabled) gateSubmit.click();
-    });
-    gateSubmit.addEventListener('click', () => {
-      const t = gateInput.value.trim();
-      if (TOKENS.has(t)) {
-        document.cookie = 'granny_access=1; path=/; max-age=86400';
-        gateOverlay.classList.remove('show');
-        tosOverlay.classList.add('show');
-      } else {
-        gateErr.textContent = '\u2014 invalid token \u2014';
-        gateInput.value = '';
-        gateSubmit.disabled = true;
-        /* screen shake */
-        gateCard.classList.remove('shake');
-        void gateCard.offsetWidth; /* reflow */
-        gateCard.classList.add('shake');
-        gateCard.addEventListener('animationend', () => gateCard.classList.remove('shake'), { once: true });
-      }
-    });
+  const unityWrap   = document.getElementById('unity-container');
+  const canvas      = document.getElementById('unity-canvas');
 
-    /* ─── ToS ──────────────────────────────────────────────────────────── */
-    tosCheck.addEventListener('change', () => { tosStart.disabled = !tosCheck.checked; });
-    tosStart.addEventListener('click', () => {
-      if (!tosCheck.checked) return;
-      document.cookie = 'granny_tos=1; path=/; max-age=86400';
-      tosOverlay.classList.remove('show');
-      launchGame();
-    });
+  const barFill     = document.getElementById('bar-fill');
+  const loadPct     = document.getElementById('load-pct');
+  const loadingUI   = document.getElementById('loading-ui');
 
-    /* ─── Auto-start ───────────────────────────────────────────────────── */
-    function hasCookie(n) {
-      return document.cookie.split(';').some(c => c.trim().startsWith(n + '='));
+  const warning     = document.getElementById('unity-warning');
+
+  /* ─── Eye toggle ───────────────────────────────────────────────────── */
+  eyeBtn.addEventListener('click', () => {
+    gateInput.type =
+      gateInput.type === 'password'
+        ? 'text'
+        : 'password';
+  });
+
+  /* ─── Gate ─────────────────────────────────────────────────────────── */
+  gateInput.addEventListener('input', () => {
+    gateSubmit.disabled = gateInput.value.trim() === '';
+    gateErr.textContent = '';
+  });
+
+  gateInput.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && !gateSubmit.disabled) {
+      gateSubmit.click();
     }
-    if (hasCookie('granny_access') && hasCookie('granny_tos')) {
+  });
+
+  gateSubmit.addEventListener('click', () => {
+    const t = gateInput.value.trim();
+
+    if (TOKENS.has(t)) {
+
+      document.cookie =
+        'granny_access=1; path=/; max-age=86400';
+
       gateOverlay.classList.remove('show');
-      launchGame();
-    }
+      tosOverlay.classList.add('show');
 
-    /* ─── Part-file assembler ──────────────────────────────────────────── */
-    async function getCombinedBlob(basePath, count, label) {
-      const bufs = [];
-      for (let i = 1; i <= count; i++) {
-        const url = `${basePath}.part${String(i).padStart(2, '0')}`;
-        loadPct.textContent = `${label} \u2014 ${Math.round((i / count) * 100)}%`;
-        const res = await fetch(url);
-        if (!res.ok) throw new Error('Missing: ' + url);
-        bufs.push(await res.arrayBuffer());
-        barFill.style.width = `${(i / count) * 100}%`;
+    } else {
+
+      gateErr.textContent = '— invalid token —';
+
+      gateInput.value = '';
+      gateSubmit.disabled = true;
+
+      gateCard.classList.remove('shake');
+      void gateCard.offsetWidth;
+      gateCard.classList.add('shake');
+
+      gateCard.addEventListener(
+        'animationend',
+        () => gateCard.classList.remove('shake'),
+        { once: true }
+      );
+    }
+  });
+
+  /* ─── ToS ──────────────────────────────────────────────────────────── */
+  tosCheck.addEventListener('change', () => {
+    tosStart.disabled = !tosCheck.checked;
+  });
+
+  tosStart.addEventListener('click', () => {
+
+    if (!tosCheck.checked) return;
+
+    document.cookie =
+      'granny_tos=1; path=/; max-age=86400';
+
+    tosOverlay.classList.remove('show');
+
+    launchGame();
+  });
+
+  /* ─── Cookie helper ────────────────────────────────────────────────── */
+  function hasCookie(name) {
+    return document.cookie
+      .split(';')
+      .some(c => c.trim().startsWith(name + '='));
+  }
+
+  /* ─── Auto-start ───────────────────────────────────────────────────── */
+  if (
+    hasCookie('granny_access') &&
+    hasCookie('granny_tos')
+  ) {
+    gateOverlay.classList.remove('show');
+    launchGame();
+  }
+
+  /* ─── Combine split files safely ───────────────────────────────────── */
+  async function getCombinedBlob(
+    basePath,
+    count,
+    label,
+    mimeType
+  ) {
+
+    const chunks = [];
+
+    for (let i = 1; i <= count; i++) {
+
+      const url =
+        `${basePath}.part${String(i).padStart(2, '0')}`;
+
+      loadPct.textContent =
+        `${label} — ${i}/${count}`;
+
+      const res = await fetch(url, {
+        cache: 'no-store'
+      });
+
+      if (!res.ok) {
+        throw new Error(
+          `Failed loading: ${url}`
+        );
       }
-      return URL.createObjectURL(new Blob(bufs));
+
+      const buf = await res.arrayBuffer();
+
+      chunks.push(buf);
+
+      const pct = (i / count) * 100;
+
+      barFill.style.width = `${pct}%`;
     }
 
-    /* ─── Launch ───────────────────────────────────────────────────────── */
-    async function launchGame() {
-      unityWrap.style.display = 'block';
-      barFill.style.width = '0%';
-      loadPct.textContent = 'loading\u2026';
+    const blob = new Blob(chunks, {
+      type: mimeType
+    });
 
-      const config = {
-        dataUrl:            '',
-        frameworkUrl:       `${BASE}/GrannyBog.framework.js`,
-        codeUrl:            '',
-        streamingAssetsUrl: `${BASE}/StreamingAssets`,
-        companyName:        'DVloper',
-        productName:        'Granny',
-        productVersion:     '1.0',
+    return URL.createObjectURL(blob);
+  }
+
+  /* ─── Launch Unity ─────────────────────────────────────────────────── */
+  async function launchGame() {
+
+    unityWrap.style.display = 'block';
+
+    warning.style.display = 'none';
+
+    barFill.style.width = '0%';
+
+    loadPct.textContent = 'Preparing...';
+
+    const config = {
+
+      dataUrl: '',
+
+      frameworkUrl:
+        `${BASE}/GrannyBog.framework.js`,
+
+      codeUrl: '',
+
+      streamingAssetsUrl:
+        `${BASE}/StreamingAssets`,
+
+      companyName: 'DVloper',
+
+      productName: 'Granny',
+
+      productVersion: '1.0',
+
+      cacheControl: function () {
+        return 'no-store';
+      }
+    };
+
+    try {
+
+      /* ─── Build DATA blob ───────────────────── */
+      config.dataUrl = await getCombinedBlob(
+        `${BASE}/GrannyBog.data`,
+        DATA_PARTS,
+        'DATA',
+        'application/octet-stream'
+      );
+
+      /* ─── Build WASM blob ───────────────────── */
+      config.codeUrl = await getCombinedBlob(
+        `${BASE}/GrannyBog.wasm`,
+        WASM_PARTS,
+        'WASM',
+        'application/wasm'
+      );
+
+      /* ─── Reset UI ──────────────────────────── */
+      barFill.style.width = '0%';
+
+      loadPct.textContent = 'Starting Unity...';
+
+      /* ─── Load Unity loader directly ────────── */
+      const script =
+        document.createElement('script');
+
+      script.src =
+        `${BASE}/GrannyBog.loader.js`;
+
+      script.async = true;
+
+      script.onerror = () => {
+
+        warning.textContent =
+          'Failed to load GrannyBog.loader.js';
+
+        warning.style.display = 'block';
       };
 
-      try {
-        config.dataUrl = await getCombinedBlob(`${BASE}/GrannyBog.data`, DATA_PARTS, 'data');
-        config.codeUrl = await getCombinedBlob(`${BASE}/GrannyBog.wasm`, WASM_PARTS, 'wasm');
+      script.onload = async () => {
 
-        loadPct.textContent = 'starting\u2026';
-        barFill.style.width = '0%';
+        if (
+          typeof createUnityInstance ===
+          'undefined'
+        ) {
 
-        const loaderRes = await fetch(`${BASE}/GrannyBog.loader.js`);
-        const loaderBlob = URL.createObjectURL(await loaderRes.blob());
+          warning.textContent =
+            'createUnityInstance missing. Loader corrupted.';
 
-        const script = document.createElement('script');
-        script.src = loaderBlob;
-        script.onerror = () => {
-          warning.textContent = 'Failed to execute loader script — check Build/GrannyBog.loader.js exists and is valid.';
           warning.style.display = 'block';
-        };
-        script.onload = () => {
-          if (typeof createUnityInstance === 'undefined') {
-            warning.textContent = 'createUnityInstance not found — loader script did not define it. The file may be corrupt or wrong.';
-            warning.style.display = 'block';
-            return;
-          }
-          createUnityInstance(canvas, config, p => {
-            barFill.style.width = (100 * p) + '%';
-            loadPct.textContent = `${Math.round(100 * p)}%`;
-          }).then(() => {
-            loadingUI.style.display = 'none';
-          }).catch(err => {
-            warning.textContent = err.message || String(err);
-            warning.style.display = 'block';
-          });
-        };
-        document.body.appendChild(script);
-      } catch (e) {
-        warning.textContent = e.message;
-        warning.style.display = 'block';
-      }
+
+          return;
+        }
+
+        try {
+
+          await createUnityInstance(
+            canvas,
+            config,
+            progress => {
+
+              const pct =
+                Math.round(progress * 100);
+
+              barFill.style.width =
+                `${pct}%`;
+
+              loadPct.textContent =
+                `${pct}%`;
+            }
+          );
+
+          loadingUI.style.display = 'none';
+
+        } catch (err) {
+
+          console.error(err);
+
+          warning.textContent =
+            err.message || String(err);
+
+          warning.style.display = 'block';
+        }
+      };
+
+      document.body.appendChild(script);
+
+    } catch (err) {
+
+      console.error(err);
+
+      warning.textContent =
+        err.message || String(err);
+
+      warning.style.display = 'block';
     }
-  </script>
+  }
+</script>
 </body>
 </html>
